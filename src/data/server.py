@@ -11,7 +11,8 @@ CORS(app)  # Habilitando o CORS para todas as origens
 
 # Variável global para armazenar os dados coletados
 dados_precos = {
-    'preco_gasolina': None,
+    'preco_gasolina_df': None,
+    'preco_gasolina_brasil': None,
     'data_coleta': None
 }
 
@@ -22,16 +23,23 @@ def executar_scraping():
     content = response.content
     site = BeautifulSoup(content, 'html.parser')
     preco_elemento = site.find('h2', class_='real-value', id='preco4')
+    preco_brasil_elemento = site.find('span', class_='real-value', id='preçomedioBrasil')
     data_elemento = site.find('span', attrs={'data-lfr-editable-id': 'telafinal-textoColeta'})
-
-    preco_gasolina = preco_elemento.text.strip() if preco_elemento else None
+    
+    # Processa os preços e a data, garantindo o formato correto
+    preco_gasolina_df = preco_elemento.text.strip().replace(',', '.') if preco_elemento else None
+    preco_gasolina_brasil = preco_brasil_elemento.text.strip().replace(',', '.') if preco_brasil_elemento else None
     data_coleta = data_elemento.text.strip() if data_elemento else None
 
-    if preco_gasolina and data_coleta:
+    if preco_gasolina_df and preco_gasolina_brasil and data_coleta:
         # Atualiza os dados na variável em memória
-        dados_precos['preco_gasolina'] = preco_gasolina
+        dados_precos['preco_gasolina_df'] = preco_gasolina_df
+        dados_precos['preco_gasolina_brasil'] = preco_gasolina_brasil
         dados_precos['data_coleta'] = data_coleta
         print("Scraping executado e dados armazenados na memória!")
+        print(f"Preço gasolina DF: {preco_gasolina_df}")
+        print(f"Preço gasolina Brasil: {preco_gasolina_brasil}")
+        print(f"Data da coleta: {data_coleta}")
     else:
         print("Dados não encontrados.")
 
@@ -45,7 +53,7 @@ def iniciar_agendador():
 # API para consultar os preços
 @app.route('/api/precos', methods=['GET'])
 def obter_precos():
-    if dados_precos['preco_gasolina'] and dados_precos['data_coleta']:
+    if dados_precos['preco_gasolina_df'] and dados_precos['preco_gasolina_brasil'] and dados_precos['data_coleta']:
         return jsonify(dados_precos)
     else:
         return jsonify({"erro": "Dados ainda não coletados ou indisponíveis."}), 404
